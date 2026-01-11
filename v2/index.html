@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Associate Role Readiness Evaluator</title>
+    
+    <!-- Vue.js 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Three.js OrbitControls -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+
+        /* Custom Range Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 4px solid currentColor;
+            cursor: pointer;
+            margin-top: -8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.1s;
+        }
+
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #e2e8f0;
+            border-radius: 2px;
+        }
+
+        .card-anim {
+            transition: all 0.3s ease;
+        }
+
+        .fade-enter-active, .fade-leave-active {
+            transition: opacity 0.5s ease;
+        }
+        .fade-enter-from, .fade-leave-to {
+            opacity: 0;
+        }
+        
+        #canvas-container {
+            width: 100%;
+            height: 400px;
+            position: relative;
+            background: radial-gradient(circle at center, #ffffff 0%, #e2e8f0 100%);
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.05);
+            cursor: grab;
+        }
+        #canvas-container:active {
+            cursor: grabbing;
+        }
+    </style>
+</head>
+<body class="antialiased text-gray-800">
+
+    <div id="app" class="pb-32">
+        
+        <!-- Header -->
+        <header class="bg-white shadow-lg sticky top-0 z-50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-center items-center">
+                <!-- Role Selector -->
+                <div class="w-full max-w-2xl flex flex-col sm:flex-row items-center gap-4 bg-white p-2 sm:p-3 rounded-2xl shadow-inner border border-gray-100">
+                    <label class="text-lg font-bold text-gray-600 whitespace-nowrap"><i class="fa-solid fa-id-badge text-indigo-500 mr-2"></i>Current Role:</label>
+                    <div class="relative w-full">
+                        <select v-model="selectedRoleIndex" @change="handleRoleChange" class="appearance-none w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-900 font-extrabold text-xl p-3 pr-10 rounded-xl cursor-pointer focus:ring-4 focus:ring-indigo-300 focus:outline-none transition-all shadow-sm border border-indigo-200">
+                            <option v-for="(role, index) in roles" :key="index" :value="index">
+                                {{ role.title }}
+                            </option>
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-indigo-600">
+                            <i class="fa-solid fa-chevron-down text-lg"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            
+            <!-- Context Banner -->
+            <div class="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-2xl p-6 text-white shadow-xl mb-10 flex flex-col md:flex-row justify-between items-center">
+                <div>
+                    <h2 class="text-2xl font-bold mb-1">Evaluating: {{ currentRole.title }}</h2>
+                    <p class="opacity-90">Target Role: <span class="font-bold text-yellow-300 border-b-2 border-yellow-300">{{ currentRole.nextRole }}</span></p>
+                </div>
+                <div class="mt-4 md:mt-0 bg-white/20 backdrop-blur-md px-6 py-3 rounded-xl border border-white/30 text-center">
+                    <p class="text-xs uppercase tracking-widest font-semibold opacity-80">Readiness Model</p>
+                    <p class="text-xl font-bold">The 3 P's Framework</p>
+                </div>
+            </div>
+
+            <!-- The 3 P's Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+                
+                <!-- Loop through People, Process, Product categories -->
+                <div v-for="(category, catKey) in currentRole.categories" :key="catKey" 
+                     class="bg-white rounded-xl shadow-lg border-t-4 flex flex-col h-full"
+                     :class="{
+                        'border-red-400': catKey === 'people',
+                        'border-green-400': catKey === 'process',
+                        'border-blue-400': catKey === 'product'
+                     }">
+                    
+                    <!-- Category Header -->
+                    <div class="p-4 border-b border-gray-100 bg-gray-50 rounded-t-lg flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm shadow-sm"
+                                 :class="{
+                                    'bg-red-400': catKey === 'people',
+                                    'bg-green-400': catKey === 'process',
+                                    'bg-blue-400': catKey === 'product'
+                                 }">
+                                <i :class="categoryIcons[catKey]"></i>
+                            </div>
+                            <h3 class="font-bold text-gray-700 capitalize">{{ catKey }}</h3>
+                        </div>
+                        <span class="font-bold text-lg" 
+                              :class="{
+                                'text-red-500': catKey === 'people',
+                                'text-green-500': catKey === 'process',
+                                'text-blue-500': catKey === 'product'
+                              }">
+                              {{ Math.round(categoryScores[catKey]) }}%
+                        </span>
+                    </div>
+
+                    <!-- Attributes List -->
+                    <div class="p-4 flex-grow space-y-6">
+                        <div v-for="(attr, attrIndex) in category" :key="attrIndex" class="relative group">
+                            <div class="flex justify-between items-end mb-1">
+                                <div>
+                                    <h4 class="text-sm font-bold text-gray-800">{{ attr.name }}</h4>
+                                    <p class="text-xs text-gray-400">{{ attr.desc }}</p>
+                                </div>
+                                <span class="text-xs font-bold" 
+                                      :class="{
+                                        'text-red-400': catKey === 'people',
+                                        'text-green-400': catKey === 'process',
+                                        'text-blue-400': catKey === 'product'
+                                      }">{{ attr.score }}%</span>
+                            </div>
+                            <input type="range" v-model.number="attr.score" min="0" max="100" 
+                                   :style="{ color: getCategoryColor(catKey) }"
+                                   class="w-full">
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- 3D Visualization Section -->
+            <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 p-1 mb-8">
+                <div class="p-4 border-b border-gray-100 flex justify-between items-center">
+                    <h3 class="font-bold text-gray-700"><i class="fa-solid fa-cube text-indigo-500 mr-2"></i>Capability Volume</h3>
+                    <div class="flex flex-col md:flex-row gap-2 md:gap-4 text-xs font-bold">
+                        <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-red-400 mr-1"></span> People (X-Axis)</span>
+                        <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-green-400 mr-1"></span> Process (Y-Axis)</span>
+                        <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-blue-400 mr-1"></span> Product (Z-Axis)</span>
+                    </div>
+                </div>
+                <div id="canvas-container"></div>
+                <div class="bg-gray-50 text-center py-2 text-xs text-gray-400 italic">
+                    <p>Drag to rotate • Scroll to zoom • The sphere expands as competency grows.</p>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- Fixed Footer / Result Bar -->
+        <div class="fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur-lg border-t border-gray-200 shadow-[0_-5px_20px_rgba(0,0,0,0.1)] z-40 transition-all duration-300">
+            <div class="max-w-7xl mx-auto px-4 py-3 md:py-4">
+                <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+                    
+                    <!-- Score Display -->
+                    <div class="flex items-center gap-6 w-full md:w-auto justify-center md:justify-start">
+                        <div class="relative w-16 h-16 md:w-20 md:h-20 flex-shrink-0">
+                            <svg class="w-full h-full transform -rotate-90">
+                                <circle cx="50%" cy="50%" r="40%" stroke="#e2e8f0" stroke-width="6" fill="transparent"/>
+                                <circle cx="50%" cy="50%" r="40%" :stroke="scoreColor" stroke-width="6" fill="transparent"
+                                        :stroke-dasharray="circumference"
+                                        :stroke-dashoffset="circumference - (finalScore / 100) * circumference"
+                                        class="transition-all duration-700 ease-out"/>
+                            </svg>
+                            <div class="absolute inset-0 flex items-center justify-center flex-col">
+                                <span class="text-lg md:text-xl font-bold text-gray-800">{{ finalScore }}%</span>
+                            </div>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-xs text-gray-500 uppercase tracking-wider font-semibold">Overall Readiness</span>
+                            <div class="h-2 w-32 md:w-48 bg-gray-200 rounded-full mt-1 overflow-hidden">
+                                <div class="h-full rounded-full transition-all duration-500" 
+                                     :class="finalScore >= 75 ? 'bg-green-500' : 'bg-orange-400'"
+                                     :style="{ width: finalScore + '%' }"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Decision Box -->
+                    <div class="flex-1 w-full text-center md:text-right">
+                         <transition name="fade" mode="out-in">
+                            <div v-if="finalScore >= 75" key="eligible" class="flex flex-col md:flex-row items-center justify-end gap-2 md:gap-4">
+                                <div class="text-center md:text-right">
+                                    <h3 class="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-500 to-emerald-700">Readiness Achieved</h3>
+                                    <p class="text-xs text-green-600 font-medium">Promote to {{ currentRole.nextRole }}</p>
+                                </div>
+                                <div class="hidden md:block bg-green-100 text-green-600 p-3 rounded-full shadow-inner animate-bounce">
+                                    <i class="fa-solid fa-check text-2xl"></i>
+                                </div>
+                            </div>
+                            <div v-else key="not-eligible" class="flex flex-col md:flex-row items-center justify-end gap-2 md:gap-4">
+                                <div class="text-center md:text-right">
+                                    <h3 class="text-xl font-bold text-gray-700">Retain in Role</h3>
+                                    <p class="text-xs text-gray-500 font-medium">Develop core gaps</p>
+                                </div>
+                                <div class="hidden md:block bg-gray-100 text-gray-400 p-3 rounded-full shadow-inner">
+                                    <i class="fa-solid fa-hourglass-half text-2xl"></i>
+                                </div>
+                            </div>
+                        </transition>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const { createApp, ref, computed, onMounted, watch } = Vue;
+
+        createApp({
+            setup() {
+                const selectedRoleIndex = ref(0);
+                const circumference = 2 * Math.PI * 40; 
+                
+                const categoryIcons = {
+                    people: "fa-solid fa-users",
+                    process: "fa-solid fa-gears",
+                    product: "fa-solid fa-box-open"
+                };
+
+                // Roles Data grouped by 3 P's
+                const roles = ref([
+                    {
+                        title: "Engineer",
+                        nextRole: "Senior Engineer",
+                        categories: {
+                            people: [
+                                { name: "Self Management", desc: "Shows personal accountability", score: 50 },
+                                { name: "Peer Cooperation", desc: "Works well in pod", score: 50 },
+                                { name: "Constructive Input", desc: "Asks clarifying questions", score: 50 }
+                            ],
+                            process: [
+                                { name: "Process Adherence", desc: "Follows workflows", score: 50 },
+                                { name: "Work Estimation", desc: "Estimates own effort", score: 50 },
+                                { name: "Time Management", desc: "Delivers on deadlines", score: 50 }
+                            ],
+                            product: [
+                                { name: "Task Execution", desc: "Completes assigned activities", score: 50 },
+                                { name: "Defect Resolution", desc: "Fixes assigned issues", score: 50 },
+                                { name: "Clear Articulation", desc: "Communicates status", score: 50 },
+                                { name: "Active Learner", desc: "Absorbs foundation knowledge", score: 50 }
+                            ]
+                        }
+                    },
+                    {
+                        title: "Senior Engineer",
+                        nextRole: "Technical Architect",
+                        categories: {
+                            people: [
+                                { name: "Technical Mentorship", desc: "Guides junior associates", score: 50 },
+                                { name: "Project Context", desc: "Understands wider scope", score: 50 },
+                                { name: "Quality Control", desc: "Reviews peer outputs", score: 50 }
+                            ],
+                            process: [
+                                { name: "Operational Rigor", desc: "Ensures system stability", score: 50 },
+                                { name: "Security Awareness", desc: "Applies privacy protocols", score: 50 },
+                                { name: "Process Optimization", desc: "Improves efficiency", score: 50 },
+                                { name: "Risk Identification", desc: "Flags technical risks", score: 50 }
+                            ],
+                            product: [
+                                { name: "Delivery Reliability", desc: "Consistent high quality", score: 50 },
+                                { name: "Problem Prevention", desc: "Anticipates errors", score: 50 },
+                                { name: "Incident Resolution", desc: "Troubleshoots issues", score: 50 }
+                            ]
+                        }
+                    },
+                    {
+                        title: "Technical Architect",
+                        nextRole: "Solution Architect",
+                        categories: {
+                            people: [
+                                { name: "Inclusive Leadership", desc: "Fosters safety", score: 50 },
+                                { name: "Cross-Cultural Bridge", desc: "Connects diverse teams", score: 50 },
+                                { name: "Talent Development", desc: "Identifies skill gaps", score: 50 },
+                                { name: "Conflict Resolution", desc: "Mediates disagreements", score: 50 }
+                            ],
+                            process: [
+                                { name: "Technical Governance", desc: "Enforces standards", score: 50 },
+                                { name: "Managerial Fundamentals", desc: "Applies mgmt logic", score: 50 },
+                                { name: "Standardization", desc: "Best practices", score: 50 }
+                            ],
+                            product: [
+                                { name: "Decision Consensus", desc: "Aligns team on choices", score: 50 },
+                                { name: "Quality Assurance", desc: "Defines quality metrics", score: 50 },
+                                { name: "Team Collaboration", desc: "Maximizes productivity", score: 50 }
+                            ]
+                        }
+                    },
+                    {
+                        title: "Solution Architect",
+                        nextRole: "Product Owner",
+                        categories: {
+                            people: [
+                                { name: "Stakeholder Persuasion", desc: "Influences decisions", score: 50 },
+                                { name: "Executive Presence", desc: "Engages senior leaders", score: 50 },
+                                { name: "Storytelling", desc: "Narrates compelling visions", score: 50 }
+                            ],
+                            process: [
+                                { name: "Problem Definition", desc: "Clarifies requirements", score: 50 },
+                                { name: "Requirement Synthesis", desc: "Unifies conflicting needs", score: 50 }
+                            ],
+                            product: [
+                                { name: "Client Alignment", desc: "Maps needs to solutions", score: 50 },
+                                { name: "Design Thinking", desc: "User-centric approach", score: 50 },
+                                { name: "Strategic Proposals", desc: "Crafts winning bids", score: 50 },
+                                { name: "Solution Blueprinting", desc: "Architecting end-state", score: 50 },
+                                { name: "Value Articulation", desc: "Explains business benefits", score: 50 }
+                            ]
+                        }
+                    },
+                    {
+                        title: "Product Owner",
+                        nextRole: "Enterprise Architect",
+                        categories: {
+                            people: [
+                                { name: "Stakeholder Balancing", desc: "Manages conflicts", score: 50 },
+                                { name: "Agile Governance", desc: "Enforces iterative discipline", score: 50 }
+                            ],
+                            process: [
+                                { name: "Backlog Management", desc: "Curates development lists", score: 50 },
+                                { name: "Transition Management", desc: "Oversees lifecycle changes", score: 50 },
+                                { name: "Scope Management", desc: "Controls feature creep", score: 50 }
+                            ],
+                            product: [
+                                { name: "Value Prioritization", desc: "Ranks high-ROI features", score: 50 },
+                                { name: "Domain Expertise", desc: "Applies industry context", score: 50 },
+                                { name: "Roadmap Definition", desc: "Plans long-term vision", score: 50 },
+                                { name: "Market Alignment", desc: "Ensures product fit", score: 50 },
+                                { name: "Acceptance Criteria", desc: "Defines success metrics", score: 50 }
+                            ]
+                        }
+                    },
+                    {
+                        title: "Enterprise Architect",
+                        nextRole: "Director / CTO",
+                        categories: {
+                            people: [
+                                { name: "Change Management", desc: "Guides org shifts", score: 50 },
+                                { name: "Executive Advisory", desc: "Counsels C-level leaders", score: 50 },
+                                { name: "Business Consulting", desc: "Advises on models", score: 50 }
+                            ],
+                            process: [
+                                { name: "Policy Governance", desc: "Sets enterprise standards", score: 50 },
+                                { name: "Risk Governance", desc: "Manages macro risks", score: 50 },
+                                { name: "Capability Planning", desc: "Maps future needs", score: 50 }
+                            ],
+                            product: [
+                                { name: "Organizational Strategy", desc: "Defines direction", score: 50 },
+                                { name: "Industry Advisory", desc: "Interprets trends", score: 50 },
+                                { name: "Strategic Alignment", desc: "Unifies IT and Business", score: 50 },
+                                { name: "Ecosystem Design", desc: "Architects complex systems", score: 50 }
+                            ]
+                        }
+                    }
+                ]);
+
+                const currentRole = computed(() => roles.value[selectedRoleIndex.value]);
+
+                const categoryScores = computed(() => {
+                    const result = { people: 0, process: 0, product: 0 };
+                    for (const [key, list] of Object.entries(currentRole.value.categories)) {
+                        const sum = list.reduce((acc, curr) => acc + curr.score, 0);
+                        result[key] = list.length ? sum / list.length : 0;
+                    }
+                    return result;
+                });
+
+                const finalScore = computed(() => {
+                    const s = categoryScores.value;
+                    // Weighted average or simple average of the 3 P's
+                    return Math.round((s.people + s.process + s.product) / 3);
+                });
+
+                const scoreColor = computed(() => {
+                    if (finalScore.value >= 75) return '#22c55e'; // Green
+                    if (finalScore.value >= 50) return '#f59e0b'; // Orange
+                    return '#ef4444'; // Red
+                });
+
+                const getCategoryColor = (key) => {
+                    if (key === 'people') return '#f87171'; // Red-400
+                    if (key === 'process') return '#4ade80'; // Green-400
+                    if (key === 'product') return '#60a5fa'; // Blue-400
+                    return '#9ca3af';
+                };
+
+                const resetScores = () => {
+                    for (const list of Object.values(roles.value[selectedRoleIndex.value].categories)) {
+                        list.forEach(attr => attr.score = 50);
+                    }
+                };
+
+                const handleRoleChange = () => {
+                    resetScores();
+                };
+
+                // Three.js Variables
+                let scene, camera, renderer, sphere, pivot, controls;
+
+                const initThreeJS = () => {
+                    const container = document.getElementById('canvas-container');
+                    if (!container) return;
+
+                    // Scene setup
+                    scene = new THREE.Scene();
+                    // Setup camera
+                    camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
+                    
+                    // Position camera at an angle to see all axes clearly by default
+                    camera.position.set(4, 4, 6);
+
+                    // Renderer setup
+                    renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+                    renderer.setSize(container.clientWidth, container.clientHeight);
+                    container.appendChild(renderer.domElement);
+
+                    // Controls
+                    controls = new THREE.OrbitControls(camera, renderer.domElement);
+                    controls.enableDamping = true; // For smooth interaction
+                    controls.dampingFactor = 0.05;
+
+                    // Create Pivot Group for Rotation
+                    pivot = new THREE.Group();
+                    // No fixed rotation needed anymore since camera is positioned angularly
+                    scene.add(pivot);
+
+                    // Create Sphere
+                    const geometry = new THREE.SphereGeometry(1, 64, 64);
+                    // Use a material that reacts to light for "pretty" effect
+                    const material = new THREE.MeshPhongMaterial({ 
+                        color: 0xffffff,
+                        shininess: 90,
+                        flatShading: false,
+                        vertexColors: false
+                    });
+                    sphere = new THREE.Mesh(geometry, material);
+                    pivot.add(sphere);
+
+                    // Add Axes Helper (optional visualization aid, but wireframe sphere is better for volume)
+                    // Let's add lighting
+                    const ambientLight = new THREE.AmbientLight(0x404040); // Soft white light
+                    scene.add(ambientLight);
+
+                    // Colored Lights mapping to the 3 Ps
+                    // People (Red/X)
+                    const light1 = new THREE.PointLight(0xff6b6b, 1.5, 100);
+                    light1.position.set(10, 0, 0);
+                    scene.add(light1);
+
+                    // Process (Green/Y)
+                    const light2 = new THREE.PointLight(0x51cf66, 1.5, 100);
+                    light2.position.set(0, 10, 0);
+                    scene.add(light2);
+
+                    // Product (Blue/Z)
+                    const light3 = new THREE.PointLight(0x339af0, 1.5, 100);
+                    light3.position.set(0, 0, 10);
+                    scene.add(light3);
+
+                    // Helper function to create Axis with Label
+                    const createAxis = (direction, colorHex, labelText) => {
+                        // Arrow
+                        const arrow = new THREE.ArrowHelper(direction, new THREE.Vector3(0,0,0), 2.2, colorHex, 0.3, 0.2);
+                        pivot.add(arrow);
+
+                        // Label Sprite
+                        const canvas = document.createElement('canvas');
+                        const context = canvas.getContext('2d');
+                        canvas.width = 256;
+                        canvas.height = 64;
+                        context.font = 'Bold 32px "Poppins", sans-serif';
+                        context.fillStyle = '#' + new THREE.Color(colorHex).getHexString();
+                        context.textAlign = 'center';
+                        context.textBaseline = 'middle';
+                        context.fillText(labelText, 128, 32);
+                        
+                        const texture = new THREE.CanvasTexture(canvas);
+                        const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
+                        const sprite = new THREE.Sprite(spriteMaterial);
+                        
+                        // Position text at tip
+                        const pos = direction.clone().multiplyScalar(2.4);
+                        sprite.position.copy(pos);
+                        sprite.scale.set(1.5, 0.375, 1);
+                        pivot.add(sprite);
+                    };
+
+                    // Add Axes: X=People, Y=Process, Z=Product
+                    createAxis(new THREE.Vector3(1, 0, 0), 0xf87171, "People");
+                    createAxis(new THREE.Vector3(0, 1, 0), 0x4ade80, "Process");
+                    createAxis(new THREE.Vector3(0, 0, 1), 0x60a5fa, "Product");
+
+
+                    // Add a subtle wireframe overlay for tech feel
+                    const wireframe = new THREE.WireframeGeometry(geometry);
+                    const line = new THREE.LineSegments(wireframe);
+                    line.material.depthTest = false;
+                    line.material.opacity = 0.05;
+                    line.material.transparent = true;
+                    sphere.add(line);
+
+                    // Animation Loop
+                    const animate = () => {
+                        requestAnimationFrame(animate);
+                        
+                        // Update controls for damping
+                        controls.update();
+
+                        // Smooth Scale Interpolation (Applied to Sphere only)
+                        const scores = categoryScores.value;
+                        
+                        // Map 0-100% to Scale 0.5 - 2.0
+                        const targetX = 0.5 + (scores.people / 100) * 1.5;
+                        const targetY = 0.5 + (scores.process / 100) * 1.5;
+                        const targetZ = 0.5 + (scores.product / 100) * 1.5;
+
+                        sphere.scale.x += (targetX - sphere.scale.x) * 0.1;
+                        sphere.scale.y += (targetY - sphere.scale.y) * 0.1;
+                        sphere.scale.z += (targetZ - sphere.scale.z) * 0.1;
+
+                        renderer.render(scene, camera);
+                    };
+                    animate();
+
+                    // Resize Handler
+                    window.addEventListener('resize', () => {
+                        if(!container) return;
+                        const width = container.clientWidth;
+                        const height = container.clientHeight;
+                        renderer.setSize(width, height);
+                        camera.aspect = width / height;
+                        camera.updateProjectionMatrix();
+                    });
+                };
+
+                onMounted(() => {
+                    initThreeJS();
+                });
+
+                return {
+                    roles,
+                    selectedRoleIndex,
+                    currentRole,
+                    finalScore,
+                    categoryScores,
+                    circumference,
+                    categoryIcons,
+                    scoreColor,
+                    getCategoryColor,
+                    resetScores,
+                    handleRoleChange
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
