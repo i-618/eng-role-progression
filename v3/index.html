@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Associate Role Readiness Evaluator</title>
+    
+    <!-- Vue.js 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Three.js OrbitControls -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+
+        /* Custom Range Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 4px solid currentColor;
+            cursor: pointer;
+            margin-top: -8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.1s;
+        }
+
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #e2e8f0;
+            border-radius: 2px;
+        }
+
+        .card-anim {
+            transition: all 0.3s ease;
+        }
+
+        .fade-enter-active, .fade-leave-active {
+            transition: opacity 0.5s ease;
+        }
+        .fade-enter-from, .fade-leave-to {
+            opacity: 0;
+        }
+        
+        #canvas-container {
+            width: 100%;
+            height: 400px;
+            position: relative;
+            background: radial-gradient(circle at center, #ffffff 0%, #e2e8f0 100%);
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.05);
+            cursor: grab;
+        }
+        #canvas-container:active {
+            cursor: grabbing;
+        }
+    </style>
+</head>
+<body class="antialiased text-gray-800">
+
+    <div id="app" class="pb-36">
+        
+        <!-- Header -->
+        <header class="bg-white shadow-lg sticky top-0 z-50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-center items-center">
+                <!-- Associate Selector -->
+                <div class="w-full max-w-2xl flex flex-col sm:flex-row items-center gap-4 bg-white p-2 sm:p-3 rounded-2xl shadow-inner border border-gray-100">
+                    <label class="text-lg font-bold text-gray-600 whitespace-nowrap"><i class="fa-solid fa-user-tie text-indigo-500 mr-2"></i>Select Associate:</label>
+                    <div class="relative w-full">
+                        <select v-model="selectedAssociateIndex" @change="handleAssociateChange" class="appearance-none w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-900 font-extrabold text-xl p-3 pr-10 rounded-xl cursor-pointer focus:ring-4 focus:ring-indigo-300 focus:outline-none transition-all shadow-sm border border-indigo-200">
+                            <option v-for="(associate, index) in associates" :key="index" :value="index">
+                                {{ associate.name }}
+                            </option>
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-indigo-600">
+                            <i class="fa-solid fa-chevron-down text-lg"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            
+            <!-- Context Banner -->
+            <div class="bg-gradient-to-r from-indigo-600 via-blue-600 to-teal-500 rounded-2xl p-6 text-white shadow-xl mb-10 flex flex-col md:flex-row justify-between items-center gap-6">
+                <div class="flex-1">
+                    <p class="text-xs uppercase tracking-widest opacity-80 font-semibold mb-1">Associate Profile</p>
+                    <h2 class="text-3xl font-bold mb-1">{{ currentRole.role }} <span class="text-lg font-normal opacity-75">({{ currentRole.level }})</span></h2>
+                    
+                    <!-- Next Level Options -->
+                    <div v-if="nextLevelRoles.length > 0" class="mt-3">
+                        <div class="flex items-start gap-2">
+                            <i class="fa-solid fa-arrow-trend-up text-yellow-300 mt-1"></i>
+                            <div>
+                                <span class="opacity-90 text-sm block mb-1">Potential Next Roles:</span>
+                                <div class="flex flex-wrap gap-2">
+                                    <span v-for="(role, idx) in nextLevelRoles" :key="idx" 
+                                          class="bg-white/20 px-2 py-1 rounded text-xs font-bold border border-white/30 text-yellow-100">
+                                        {{ role.role }} ({{ role.level }})
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div v-else class="mt-2 text-yellow-200 font-semibold">
+                        <i class="fa-solid fa-crown mr-2"></i>Top of Hierarchy Reached
+                    </div>
+                </div>
+
+                <!-- Score Cards -->
+                <div class="flex gap-4">
+                    <!-- Promotion Readiness -->
+                    <div class="bg-white/20 backdrop-blur-md px-6 py-4 rounded-xl border border-white/40 text-center min-w-[160px]">
+                        <p class="text-xs font-medium text-yellow-200 uppercase tracking-wide">Readiness Score</p>
+                        <p class="text-4xl font-extrabold text-white mt-1">
+                            {{ displayPromotionReadiness }}%
+                        </p>
+                        <p class="text-[10px] text-white/80 mt-1">Based on Current Level</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 xl:grid-cols-4 gap-8">
+                
+                <!-- Skills Columns (Span 3) -->
+                <div class="xl:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6">
+                    
+                    <!-- Technology Column -->
+                    <div class="flex flex-col h-full bg-white rounded-xl shadow-lg border-t-4 border-blue-500 overflow-hidden">
+                        <div class="p-4 bg-blue-50 border-b border-blue-100 flex justify-between items-center">
+                            <h3 class="font-bold text-gray-700 flex items-center gap-2">
+                                <i class="fa-solid fa-code text-blue-500"></i> Technology
+                            </h3>
+                            <span class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-sm font-bold">{{ Math.round(columnAverages.tech) }}%</span>
+                        </div>
+                        <div class="p-4 space-y-6 overflow-y-auto max-h-[600px] scrollbar-hide">
+                            <div v-for="(group, level) in groupedSkills.technology" :key="level" class="mb-4">
+                                <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 border-b border-gray-100 pb-1 sticky top-0 bg-white z-10">
+                                    Level {{ level }}
+                                </div>
+                                <div v-for="(skill, idx) in group" :key="idx" class="mb-4 last:mb-0">
+                                    <div class="flex justify-between items-start mb-1">
+                                        <div>
+                                            <p class="text-sm font-bold text-gray-800 leading-tight">{{ skill.name }}</p>
+                                            <p class="text-[10px] text-gray-400 leading-snug mt-0.5">{{ skill.desc }}</p>
+                                        </div>
+                                        <span class="text-xs font-bold text-blue-500 ml-2">{{ skill.userScore }}%</span>
+                                    </div>
+                                    <input type="range" v-model.number="skill.userScore" min="0" max="100" class="w-full text-blue-500">
+                                </div>
+                            </div>
+                            <div v-if="Object.keys(groupedSkills.technology).length === 0" class="text-center text-gray-400 text-sm py-4">
+                                No specific technology skills tracked for this level tier.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Product Column -->
+                    <div class="flex flex-col h-full bg-white rounded-xl shadow-lg border-t-4 border-emerald-500 overflow-hidden">
+                        <div class="p-4 bg-emerald-50 border-b border-emerald-100 flex justify-between items-center">
+                            <h3 class="font-bold text-gray-700 flex items-center gap-2">
+                                <i class="fa-solid fa-box-open text-emerald-500"></i> Product
+                            </h3>
+                            <span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-sm font-bold">{{ Math.round(columnAverages.product) }}%</span>
+                        </div>
+                        <div class="p-4 space-y-6 overflow-y-auto max-h-[600px] scrollbar-hide">
+                            <div v-for="(group, level) in groupedSkills.product" :key="level" class="mb-4">
+                                <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 border-b border-gray-100 pb-1 sticky top-0 bg-white z-10">
+                                    Level {{ level }}
+                                </div>
+                                <div v-for="(skill, idx) in group" :key="idx" class="mb-4 last:mb-0">
+                                    <div class="flex justify-between items-start mb-1">
+                                        <div>
+                                            <p class="text-sm font-bold text-gray-800 leading-tight">{{ skill.name }}</p>
+                                            <p class="text-[10px] text-gray-400 leading-snug mt-0.5">{{ skill.desc }}</p>
+                                        </div>
+                                        <span class="text-xs font-bold text-emerald-500 ml-2">{{ skill.userScore }}%</span>
+                                    </div>
+                                    <input type="range" v-model.number="skill.userScore" min="0" max="100" class="w-full text-emerald-500">
+                                </div>
+                            </div>
+                            <div v-if="Object.keys(groupedSkills.product).length === 0" class="text-center text-gray-400 text-sm py-4">
+                                No specific product skills tracked for this level tier.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Soft Skills Column -->
+                    <div class="flex flex-col h-full bg-white rounded-xl shadow-lg border-t-4 border-pink-500 overflow-hidden">
+                        <div class="p-4 bg-pink-50 border-b border-pink-100 flex justify-between items-center">
+                            <h3 class="font-bold text-gray-700 flex items-center gap-2">
+                                <i class="fa-solid fa-users text-pink-500"></i> Soft Skills
+                            </h3>
+                            <span class="bg-pink-100 text-pink-700 px-2 py-1 rounded text-sm font-bold">{{ Math.round(columnAverages.soft) }}%</span>
+                        </div>
+                        <div class="p-4 space-y-6 overflow-y-auto max-h-[600px] scrollbar-hide">
+                            <div v-for="(group, level) in groupedSkills.softskill" :key="level" class="mb-4">
+                                <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 border-b border-gray-100 pb-1 sticky top-0 bg-white z-10">
+                                    Level {{ level }}
+                                </div>
+                                <div v-for="(skill, idx) in group" :key="idx" class="mb-4 last:mb-0">
+                                    <div class="flex justify-between items-start mb-1">
+                                        <div>
+                                            <p class="text-sm font-bold text-gray-800 leading-tight">{{ skill.name }}</p>
+                                            <p class="text-[10px] text-gray-400 leading-snug mt-0.5">{{ skill.desc }}</p>
+                                        </div>
+                                        <span class="text-xs font-bold text-pink-500 ml-2">{{ skill.userScore }}%</span>
+                                    </div>
+                                    <input type="range" v-model.number="skill.userScore" min="0" max="100" class="w-full text-pink-500">
+                                </div>
+                            </div>
+                            <div v-if="Object.keys(groupedSkills.softskill).length === 0" class="text-center text-gray-400 text-sm py-4">
+                                No specific soft skills tracked for this level tier.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Visualization & Summary Column (Span 1) -->
+                <div class="xl:col-span-1 space-y-6">
+                    
+                    <!-- 3D Vis -->
+                    <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 p-1">
+                        <div class="p-3 border-b border-gray-100 flex justify-between items-center">
+                            <h3 class="font-bold text-gray-700 text-sm">Capability Volume</h3>
+                            <button @click="resetCamera" class="text-xs text-indigo-500 hover:text-indigo-700 underline">Reset View</button>
+                        </div>
+                        <div id="canvas-container" class="h-64"></div>
+                        <div class="p-2 bg-gray-50 text-[10px] text-gray-500 flex flex-wrap gap-2 justify-center">
+                            <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-blue-500 mr-1"></span>Tech (X)</span>
+                            <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-emerald-500 mr-1"></span>Prod (Y)</span>
+                            <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-pink-500 mr-1"></span>Soft (Z)</span>
+                        </div>
+                    </div>
+
+                    <!-- Targets Breakdown -->
+                    <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+                        <div class="bg-gray-800 text-white p-3 font-bold text-sm">
+                            <i class="fa-solid fa-bullseye mr-2"></i>Current Level Targets ({{ currentRole.level }})
+                        </div>
+                        <div class="p-4 space-y-4">
+                            <!-- Tech Gap -->
+                            <div>
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span class="font-semibold text-blue-600">Technology</span>
+                                    <span class="text-gray-500">Target: {{ currentRole.tScore }}%</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="bg-blue-500 h-2 rounded-full transition-all duration-500" :style="{ width: Math.min(100, (currentLevelAverages.tech / currentRole.tScore) * 100) + '%' }"></div>
+                                </div>
+                                <p class="text-[10px] mt-1 text-right" :class="currentLevelAverages.tech >= currentRole.tScore ? 'text-green-500' : 'text-red-500'">
+                                    {{ currentLevelAverages.tech >= currentRole.tScore ? 'Met' : 'Avg: ' + Math.round(currentLevelAverages.tech) + '%' }}
+                                </p>
+                            </div>
+
+                            <!-- Product Gap -->
+                            <div>
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span class="font-semibold text-emerald-600">Product</span>
+                                    <span class="text-gray-500">Target: {{ currentRole.pScore }}%</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="bg-emerald-500 h-2 rounded-full transition-all duration-500" :style="{ width: Math.min(100, (currentLevelAverages.product / currentRole.pScore) * 100) + '%' }"></div>
+                                </div>
+                                <p class="text-[10px] mt-1 text-right" :class="currentLevelAverages.product >= currentRole.pScore ? 'text-green-500' : 'text-red-500'">
+                                    {{ currentLevelAverages.product >= currentRole.pScore ? 'Met' : 'Avg: ' + Math.round(currentLevelAverages.product) + '%' }}
+                                </p>
+                            </div>
+
+                            <!-- Soft Skill Gap -->
+                            <div>
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span class="font-semibold text-pink-600">Soft Skills</span>
+                                    <span class="text-gray-500">Target: {{ currentRole.sScore }}%</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="bg-pink-500 h-2 rounded-full transition-all duration-500" :style="{ width: Math.min(100, (currentLevelAverages.soft / currentRole.sScore) * 100) + '%' }"></div>
+                                </div>
+                                <p class="text-[10px] mt-1 text-right" :class="currentLevelAverages.soft >= currentRole.sScore ? 'text-green-500' : 'text-red-500'">
+                                    {{ currentLevelAverages.soft >= currentRole.sScore ? 'Met' : 'Avg: ' + Math.round(currentLevelAverages.soft) + '%' }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Future Roles List -->
+                    <div v-if="futureRoles && futureRoles.length > 0" class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+                        <div class="bg-indigo-900 text-white p-3 font-bold text-sm flex justify-between items-center">
+                            <span><i class="fa-solid fa-stairs mr-2"></i>Career Trajectory</span>
+                            <span class="text-[10px] bg-indigo-800 px-2 py-0.5 rounded-full">Outlook</span>
+                        </div>
+                        <div class="p-0 max-h-64 overflow-y-auto">
+                            <div v-for="(role, idx) in futureRoles" :key="idx" class="p-3 border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors">
+                                <div class="flex justify-between items-center mb-1">
+                                    <div>
+                                        <p class="text-xs font-bold text-gray-700">{{ role.role }}</p>
+                                        <p class="text-[10px] text-gray-400">{{ role.level }}</p>
+                                    </div>
+                                    <span class="text-sm font-bold" 
+                                          :class="role.readiness >= 85 ? 'text-green-600' : (role.readiness >= 60 ? 'text-yellow-600' : 'text-gray-400')">
+                                        {{ role.readiness }}%
+                                    </span>
+                                </div>
+                                <div class="w-full bg-gray-100 rounded-full h-1.5 mt-1">
+                                    <div class="h-1.5 rounded-full transition-all duration-500" 
+                                         :class="role.readiness >= 85 ? 'bg-green-500' : (role.readiness >= 60 ? 'bg-yellow-500' : 'bg-gray-300')"
+                                         :style="{ width: role.readiness + '%' }"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </main>
+
+        <!-- Fixed Footer -->
+        <div class="fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur-lg border-t border-gray-200 shadow-[0_-5px_20px_rgba(0,0,0,0.1)] z-40 transition-all duration-300">
+            <div class="max-w-7xl mx-auto px-4 py-3 md:py-4">
+                <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+                    
+                    <!-- Current Status Info -->
+                    <div class="text-sm text-gray-500 hidden md:block">
+                        <span class="font-bold text-gray-800">{{ currentAssociate.name }}</span> - {{ currentRole.role }}
+                    </div>
+
+                    <!-- Final Promotion Score -->
+                    <div class="flex items-center gap-6">
+                        <div class="text-right">
+                            <p class="text-xs uppercase tracking-wider font-bold text-gray-500">Readiness for Promotion</p>
+                            <p class="text-3xl font-extrabold" :class="promotionColor">{{ displayPromotionReadiness }}%</p>
+                        </div>
+
+                        <!-- Decision Badge -->
+                         <transition name="fade" mode="out-in">
+                            <div v-if="displayPromotionReadiness >= 100" key="eligible" class="flex items-center gap-2 bg-green-100 px-4 py-2 rounded-full border border-green-200">
+                                <i class="fa-solid fa-check-circle text-green-600 text-xl"></i>
+                                <div>
+                                    <p class="text-xs font-bold text-green-800 uppercase">Eligible</p>
+                                    <p class="text-[10px] text-green-600 leading-none">Promote Now</p>
+                                </div>
+                            </div>
+                            <div v-else-if="displayPromotionReadiness >= 60" key="developing" class="flex items-center gap-2 bg-yellow-100 px-4 py-2 rounded-full border border-yellow-200">
+                                <i class="fa-solid fa-arrow-up-right-dots text-yellow-600 text-xl"></i>
+                                <div>
+                                    <p class="text-xs font-bold text-yellow-800 uppercase">Developing</p>
+                                    <p class="text-[10px] text-yellow-600 leading-none">Gap Closure Needed</p>
+                                </div>
+                            </div>
+                            <div v-else key="not-eligible" class="flex items-center gap-2 bg-gray-100 px-4 py-2 rounded-full border border-gray-200">
+                                <i class="fa-solid fa-lock text-gray-400 text-xl"></i>
+                                <div>
+                                    <p class="text-xs font-bold text-gray-600 uppercase">Not Ready</p>
+                                    <p class="text-[10px] text-gray-500 leading-none">Focus on Current Role</p>
+                                </div>
+                            </div>
+                        </transition>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const { createApp, ref, computed, onMounted, watch, reactive } = Vue;
+
+        createApp({
+            setup() {
+                const selectedAssociateIndex = ref(0);
+
+                // --- DATA ---
+                // Scores set to 0 as requested
+                const rawTech = [
+                  { name: "Guided Task Execution", desc: "Completes coding, unit testing, and syntax-level tasks with active guidance", score: 0, level: "L1" },
+                  { name: "Independent Task Delivery", desc: "Completes assigned tasks independently with proficiency in a single language", score: 0, level: "L2" },
+                  { name: "Advanced Tool Utilization", desc: "Uses advanced features of common tools/frameworks to improve productivity", score: 0, level: "L2" },
+                  { name: "Specialized Technical Proficiency", desc: "Strong command over role-specific tools, platforms, and coding principles", score: 0, level: "L3" },
+                  { name: "End-to-End Development Awareness", desc: "Understands full lifecycle: dev, test, deploy, support, security", score: 0, level: "L3" },
+                  { name: "Feature Design & Implementation", desc: "Translates requirements into modular designs; implements medium-large features", score: 0, level: "L3" },
+                  { name: "Secure & Privacy-Aware Design", desc: "Applies secure-by-design and privacy-by-design principles", score: 0, level: "L3" },
+                  { name: "High-Level Design Authoring", desc: "Creates HLD documents and contributes to prototype design", score: 0, level: "L3" },
+                  { name: "Emerging Technology Adaptation", desc: "Proposes alternative solutions leveraging emerging tech", score: 0, level: "L3" },
+                  { name: "End-to-End Architecture Design", desc: "Designs complete solution architectures spanning multiple systems", score: 0, level: "L4" },
+                  { name: "System Integration & Optimization", desc: "Designs multi-system integrations with performance/cost optimizations", score: 0, level: "L4" },
+                  { name: "Business-Driven System Design", desc: "Creates robust systems aligned with business requirements", score: 0, level: "L4" },
+                  { name: "Architecture Tradeoff Analysis", desc: "Evaluates alternatives and makes informed tradeoff decisions", score: 0, level: "L4" },
+                  { name: "Technology Roadmap Creation", desc: "Builds tech roadmaps aligned with market trends", score: 0, level: "L5" },
+                  { name: "Enterprise Architecture Standards", desc: "Defines and enforces architecture standards across enterprise", score: 0, level: "L5" },
+                  { name: "Technology Governance Exposure", desc: "Understands technology governance frameworks", score: 0, level: "L5" },
+                  { name: "Architect Mentorship", desc: "Guides and mentors solution architects", score: 0, level: "L5" },
+                  { name: "Cross-Team Architecture Review", desc: "Reviews architectures across teams; proposes strategic improvements", score: 0, level: "L5" },
+                  { name: "Business-Aligned Technology Strategy", desc: "Aligns decisions with measurable business outcomes", score: 0, level: "L6" },
+                  { name: "Enterprise Architecture Governance", desc: "Designs/implements enterprise-wide governance models", score: 0, level: "L6" },
+                  { name: "Future-State Visioning", desc: "Defines long-term architecture vision", score: 0, level: "L6" },
+                  { name: "Cost Optimization Strategy", desc: "Designs pricing/cost strategies for profitability", score: 0, level: "L6" },
+                  { name: "Pricing Model Advisory", desc: "Proposes pricing models to leadership", score: 0, level: "L6" }
+                ];
+
+                const rawSoft = [
+                  { name: "Personal Discipline", desc: "Consistency, punctuality, and accountability", score: 0, level: "L1" },
+                  { name: "Individual Task Ownership", desc: "Completes tasks with reliability and focus", score: 0, level: "L1" },
+                  { name: "Peer Collaboration", desc: "Works effectively with peers on shared goals", score: 0, level: "L2" },
+                  { name: "Team Delivery", desc: "Contributes to collective team success", score: 0, level: "L2" },
+                  { name: "Continuous Improvement Mindset", desc: "Proactively suggests process/tool enhancements", score: 0, level: "L3" },
+                  { name: "Technology Abstraction", desc: "Abstracts complex concepts into reusable patterns", score: 0, level: "L3" },
+                  { name: "Best Practice Development", desc: "Creates and promotes best practices", score: 0, level: "L4" },
+                  { name: "Knowledge Sharing", desc: "Mentors others and disseminates knowledge", score: 0, level: "L4" },
+                  { name: "Challenging Status Quo", desc: "Questions approaches to drive innovation", score: 0, level: "L5" },
+                  { name: "Business Acumen", desc: "Understands business drivers and priorities", score: 0, level: "L5" },
+                  { name: "Global Collaboration", desc: "Collaborates across cultures and countries", score: 0, level: "L5" },
+                  { name: "Thought Leadership", desc: "Builds credibility in industry/academic ecosystems", score: 0, level: "L6" },
+                  { name: "Financial Literacy", desc: "Understands P&L, balance sheets, bottom-line impact", score: 0, level: "L6" }
+                ];
+
+                const rawProduct = [
+                  { name: "Process Awareness", desc: "Follows defined processes and SOPs", score: 0, level: "L1" },
+                  { name: "Task Compliance", desc: "Executes tasks with minimal process deviations", score: 0, level: "L1" },
+                  { name: "Consistent Execution", desc: "Consistently applies processes in delivery", score: 0, level: "L2" },
+                  { name: "Documentation Usage", desc: "Uses templates, checklists, documentation", score: 0, level: "L2" },
+                  { name: "Process Optimization", desc: "Identifies inefficiencies, suggests improvements", score: 0, level: "L3" },
+                  { name: "Cross-Process Understanding", desc: "Understands interaction of processes across lifecycle", score: 0, level: "L3" },
+                  { name: "Standardization", desc: "Promotes standardized processes across teams", score: 0, level: "L4" },
+                  { name: "Governance Implementation", desc: "Implements quality gates and compliance", score: 0, level: "L4" },
+                  { name: "Enterprise Process Design", desc: "Designs scalable processes across functions", score: 0, level: "L5" },
+                  { name: "Process Strategy", desc: "Defines long-term strategy and leads transformation", score: 0, level: "L6" }
+                ];
+
+                const rolesData = ref([
+                  { level: "L1",  tScore: 50,  pScore: 50,  sScore: 100, role: "Engineer" },
+                  { level: "L2A", tScore: 50,  pScore: 25,  sScore: 100, role: "Sr Engineer" },
+                  { level: "L2B", tScore: 25,  pScore: 50,  sScore: 100, role: "Analyst" },
+                  { level: "L3A", tScore: 75,  pScore: 25,  sScore: 100, role: "Technical Architect" },
+                  { level: "L3B", tScore: 25,  pScore: 75,  sScore: 100, role: "Product Engg Lead" },
+                  { level: "L4A", tScore: 100, pScore: 25,  sScore: 100, role: "Solution Architect" },
+                  { level: "L4B", tScore: 75,  pScore: 50,  sScore: 100, role: "Product Engg Manager" },
+                  { level: "L4C", tScore: 50,  pScore: 75,  sScore: 100, role: "Product Manager" },
+                  { level: "L5A", tScore: 100, pScore: 50,  sScore: 100, role: "Enterprise Architect" },
+                  { level: "L5B", tScore: 75,  pScore: 75,  sScore: 100, role: "Head Product Engg" },
+                  { level: "L5C", tScore: 50,  pScore: 100, sScore: 100, role: "Product Owner" },
+                  { level: "L6A", tScore: 100, pScore: 50,  sScore: 100, role: "Chief Architect" },
+                  { level: "L6B", tScore: 50,  pScore: 100, sScore: 100, role: "Sr Product Owner" }
+                ]);
+
+                // --- ASSOCIATE DATA MANAGEMENT ---
+                const associateNames = ["Rahul", "Daniyal", "Barath", "Rajshekar", "Kausik"];
+                
+                // Initialize associates with their own deep copy of skills and a random role (NOT Top Level)
+                const associates = ref(associateNames.map(name => {
+                    // Deep copy skills to ensure isolation
+                    const tech = JSON.parse(JSON.stringify(rawTech.map(s => ({...s, userScore: 0}))));
+                    const prod = JSON.parse(JSON.stringify(rawProduct.map(s => ({...s, userScore: 0}))));
+                    const soft = JSON.parse(JSON.stringify(rawSoft.map(s => ({...s, userScore: 0}))));
+                    
+                    // Assign random role, excluding top hierarchy (L6)
+                    // Major level for L6A is 6. We want to exclude matching max level.
+                    const maxLevel = 6;
+                    const validIndices = rolesData.value
+                        .map((r, i) => parseInt(r.level.charAt(1)) < maxLevel ? i : -1)
+                        .filter(i => i !== -1);
+                    
+                    const randomRoleIndex = validIndices[Math.floor(Math.random() * validIndices.length)];
+                    
+                    return {
+                        name: name,
+                        roleIndex: randomRoleIndex,
+                        skills: {
+                            technology: tech,
+                            product: prod,
+                            softskill: soft
+                        }
+                    };
+                }));
+
+                const currentAssociate = computed(() => associates.value[selectedAssociateIndex.value]);
+                const skillState = computed(() => currentAssociate.value.skills);
+                const currentRole = computed(() => rolesData.value[currentAssociate.value.roleIndex]);
+
+
+                // --- HELPERS ---
+                const getLevelRank = (lvlStr) => {
+                    const base = parseInt(lvlStr.charAt(1)); 
+                    return base * 10;
+                };
+
+                const getMajorLevel = (lvlStr) => parseInt(lvlStr.charAt(1));
+
+                // Get ALL roles at the next major level (e.g. if L2, get all L3s)
+                const nextLevelRoles = computed(() => {
+                    const currentMajor = getMajorLevel(currentRole.value.level);
+                    const nextMajor = currentMajor + 1;
+                    return rolesData.value.filter(r => getMajorLevel(r.level) === nextMajor);
+                });
+                
+                // Keep "nextRole" for backward compatibility if logic relied on single, but UI now uses list
+                // We'll pick first of next level as default for scoring calc if needed, 
+                // BUT user requested readiness based on CURRENT targets, so this is just for display logic if any
+                const nextRole = computed(() => nextLevelRoles.value.length > 0 ? nextLevelRoles.value[0] : null);
+
+
+                // --- FILTERING ---
+                const filterSkills = (skills, currentLvlStr) => {
+                    const minRank = getLevelRank(currentLvlStr);
+                    return skills.filter(s => getLevelRank(s.level) >= minRank);
+                };
+
+                const groupSkills = (skills) => {
+                    return skills.reduce((groups, skill) => {
+                        const lvl = skill.level;
+                        if (!groups[lvl]) groups[lvl] = [];
+                        groups[lvl].push(skill);
+                        return groups;
+                    }, {});
+                };
+
+                // Visible skills for the Columns (Current level and above)
+                const visibleSkills = computed(() => {
+                    const curLvl = currentRole.value.level;
+                    return {
+                        technology: filterSkills(skillState.value.technology, curLvl),
+                        product: filterSkills(skillState.value.product, curLvl),
+                        softskill: filterSkills(skillState.value.softskill, curLvl)
+                    };
+                });
+
+                const groupedSkills = computed(() => {
+                    return {
+                        technology: groupSkills(visibleSkills.value.technology),
+                        product: groupSkills(visibleSkills.value.product),
+                        softskill: groupSkills(visibleSkills.value.softskill)
+                    };
+                });
+
+                // --- SCORING ---
+                const calculateAverage = (list) => {
+                    if (list.length === 0) return 0;
+                    const sum = list.reduce((acc, s) => acc + s.userScore, 0);
+                    return sum / list.length;
+                };
+
+                // For Columns Header: Average of ALL visible skills
+                const columnAverages = computed(() => {
+                    return {
+                        tech: calculateAverage(visibleSkills.value.technology),
+                        product: calculateAverage(visibleSkills.value.product),
+                        soft: calculateAverage(visibleSkills.value.softskill)
+                    };
+                });
+
+                // For Targets Breakdown: Average of skills STRICTLY matching Current Role Level
+                const currentLevelAverages = computed(() => {
+                    const major = getMajorLevel(currentRole.value.level);
+                    return {
+                        tech: calculateAverage(skillState.value.technology.filter(s => getMajorLevel(s.level) === major)),
+                        product: calculateAverage(skillState.value.product.filter(s => getMajorLevel(s.level) === major)),
+                        soft: calculateAverage(skillState.value.softskill.filter(s => getMajorLevel(s.level) === major))
+                    };
+                });
+
+                // Helper: Get strict level skills for any role
+                const getSkillsForRole = (targetLevelStr) => {
+                    const major = getMajorLevel(targetLevelStr);
+                    return {
+                        tech: skillState.value.technology.filter(s => getMajorLevel(s.level) === major),
+                        prod: skillState.value.product.filter(s => getMajorLevel(s.level) === major),
+                        soft: skillState.value.softskill.filter(s => getMajorLevel(s.level) === major)
+                    };
+                };
+
+                // REVISED SCORING LOGIC
+                // Readiness = How well they meet the targets of the *targetRole*
+                const getReadinessScore = (targetRole) => {
+                    if (!targetRole) return 0;
+                    
+                    const skills = getSkillsForRole(targetRole.level);
+                    
+                    const avgTech = calculateAverage(skills.tech);
+                    const avgProd = calculateAverage(skills.prod);
+                    const avgSoft = calculateAverage(skills.soft);
+
+                    // Formula: If Avg >= Target, then 100%. Else (Avg/Target)*100
+                    const tVal = targetRole.tScore > 0 ? (avgTech / targetRole.tScore) * 100 : (avgTech > 0 ? 100 : 0);
+                    const pVal = targetRole.pScore > 0 ? (avgProd / targetRole.pScore) * 100 : (avgProd > 0 ? 100 : 0);
+                    const sVal = targetRole.sScore > 0 ? (avgSoft / targetRole.sScore) * 100 : (avgSoft > 0 ? 100 : 0);
+
+                    const t = Math.min(100, tVal);
+                    const p = Math.min(100, pVal);
+                    const s = Math.min(100, sVal);
+
+                    return Math.round((t + p + s) / 3);
+                };
+
+                // Promotion Readiness = Mastery of CURRENT Role Targets
+                // User requirement: "use logic from Current Level Targets for Readiness"
+                const promotionReadiness = computed(() => {
+                    return getReadinessScore(currentRole.value);
+                });
+
+                // 3. Future Roles (Filtered > 0)
+                const futureRoles = computed(() => {
+                    const roleIdx = currentAssociate.value.roleIndex;
+                    const higherRoles = rolesData.value.slice(roleIdx + 1);
+                    return higherRoles.map(role => {
+                        return {
+                            ...role,
+                            readiness: getReadinessScore(role)
+                        };
+                    }).filter(r => r.readiness > 0);
+                });
+
+                // --- ANIMATION LOGIC ---
+                const displayPromotionReadiness = ref(0);
+
+                const tween = (startVal, endVal, duration, callback) => {
+                    const startTime = performance.now();
+                    const frame = (currentTime) => {
+                        const elapsed = currentTime - startTime;
+                        const progress = Math.min(elapsed / duration, 1);
+                        const ease = progress * (2 - progress); // EaseOutQuad
+                        const current = startVal + (endVal - startVal) * ease;
+                        callback(Math.round(current));
+                        if (progress < 1) requestAnimationFrame(frame);
+                    };
+                    requestAnimationFrame(frame);
+                };
+
+                watch(promotionReadiness, (newVal, oldVal) => {
+                    tween(oldVal || 0, newVal, 800, (val) => displayPromotionReadiness.value = val);
+                });
+
+                const promotionColor = computed(() => {
+                    if (displayPromotionReadiness.value >= 100) return 'text-green-500';
+                    if (displayPromotionReadiness.value >= 60) return 'text-yellow-500';
+                    return 'text-red-500';
+                });
+
+                const handleAssociateChange = () => {
+                    // Trigger animation reset effectively
+                    displayPromotionReadiness.value = 0; 
+                    setTimeout(() => {
+                        tween(0, promotionReadiness.value, 800, (val) => displayPromotionReadiness.value = val);
+                    }, 50);
+                };
+
+                // --- THREE.JS ---
+                let scene, camera, renderer, sphere, pivot, controls;
+
+                const resetCamera = () => {
+                     if(controls) controls.reset();
+                };
+
+                const initThreeJS = () => {
+                    const container = document.getElementById('canvas-container');
+                    if (!container) return;
+
+                    scene = new THREE.Scene();
+                    camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
+                    camera.position.set(4, 4, 6);
+
+                    renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+                    renderer.setSize(container.clientWidth, container.clientHeight);
+                    container.appendChild(renderer.domElement);
+
+                    controls = new THREE.OrbitControls(camera, renderer.domElement);
+                    controls.enableDamping = true;
+                    controls.dampingFactor = 0.05;
+
+                    pivot = new THREE.Group();
+                    scene.add(pivot);
+
+                    const geometry = new THREE.SphereGeometry(1, 64, 64);
+                    // Indigo Color
+                    const material = new THREE.MeshPhongMaterial({ 
+                        color: 0x4f46e5,
+                        shininess: 100,
+                        transparent: true,
+                        opacity: 0.8
+                    });
+                    sphere = new THREE.Mesh(geometry, material);
+                    pivot.add(sphere);
+
+                    const ambientLight = new THREE.AmbientLight(0x404040);
+                    scene.add(ambientLight);
+
+                    const lightTech = new THREE.PointLight(0x3b82f6, 2, 100);
+                    lightTech.position.set(10, 0, 0);
+                    scene.add(lightTech);
+
+                    const lightProd = new THREE.PointLight(0x10b981, 2, 100);
+                    lightProd.position.set(0, 10, 0);
+                    scene.add(lightProd);
+
+                    const lightSoft = new THREE.PointLight(0xec4899, 2, 100);
+                    lightSoft.position.set(0, 0, 10);
+                    scene.add(lightSoft);
+
+                    const createAxis = (direction, colorHex, labelText) => {
+                        const arrow = new THREE.ArrowHelper(direction, new THREE.Vector3(0,0,0), 2.5, colorHex, 0.3, 0.2);
+                        pivot.add(arrow);
+
+                        const canvas = document.createElement('canvas');
+                        const context = canvas.getContext('2d');
+                        canvas.width = 256;
+                        canvas.height = 64;
+                        context.font = 'Bold 36px "Poppins", sans-serif';
+                        context.fillStyle = '#' + new THREE.Color(colorHex).getHexString();
+                        context.textAlign = 'center';
+                        context.textBaseline = 'middle';
+                        context.fillText(labelText, 128, 32);
+                        
+                        const texture = new THREE.CanvasTexture(canvas);
+                        const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
+                        const sprite = new THREE.Sprite(spriteMaterial);
+                        const pos = direction.clone().multiplyScalar(2.8);
+                        sprite.position.copy(pos);
+                        sprite.scale.set(2, 0.5, 1);
+                        pivot.add(sprite);
+                    };
+
+                    createAxis(new THREE.Vector3(1, 0, 0), 0x3b82f6, "Tech");
+                    createAxis(new THREE.Vector3(0, 1, 0), 0x10b981, "Product");
+                    createAxis(new THREE.Vector3(0, 0, 1), 0xec4899, "Soft Skills");
+
+                    const wireframe = new THREE.WireframeGeometry(geometry);
+                    const line = new THREE.LineSegments(wireframe);
+                    line.material.depthTest = false;
+                    line.material.opacity = 0.1;
+                    line.material.transparent = true;
+                    sphere.add(line);
+
+                    const animate = () => {
+                        requestAnimationFrame(animate);
+                        controls.update();
+
+                        // Use current level averages for volume visualization to match targets box
+                        const avgs = currentLevelAverages.value;
+                        const targetX = 0.5 + (avgs.tech / 100) * 2.0;
+                        const targetY = 0.5 + (avgs.product / 100) * 2.0;
+                        const targetZ = 0.5 + (avgs.soft / 100) * 2.0;
+
+                        sphere.scale.x += (targetX - sphere.scale.x) * 0.1;
+                        sphere.scale.y += (targetY - sphere.scale.y) * 0.1;
+                        sphere.scale.z += (targetZ - sphere.scale.z) * 0.1;
+
+                        renderer.render(scene, camera);
+                    };
+                    animate();
+
+                     window.addEventListener('resize', () => {
+                        if(!container) return;
+                        const width = container.clientWidth;
+                        const height = container.clientHeight || 256; 
+                        renderer.setSize(width, height);
+                        camera.aspect = width / height;
+                        camera.updateProjectionMatrix();
+                    });
+                };
+
+                onMounted(() => {
+                    setTimeout(initThreeJS, 100);
+                });
+
+                return {
+                    associates,
+                    selectedAssociateIndex,
+                    currentAssociate,
+                    rolesData,
+                    currentRole,
+                    nextRole,
+                    nextLevelRoles, // Returned new computed prop
+                    groupedSkills,
+                    columnAverages,
+                    currentLevelAverages,
+                    promotionReadiness,
+                    displayPromotionReadiness,
+                    promotionColor,
+                    futureRoles, 
+                    handleAssociateChange,
+                    resetCamera,
+                    skillState
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
