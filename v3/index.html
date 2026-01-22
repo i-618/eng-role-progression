@@ -357,7 +357,7 @@
                     <!-- Final Promotion Score -->
                     <div class="flex items-center gap-6">
                         <div class="text-right">
-                            <p class="text-xs uppercase tracking-wider font-bold text-gray-500">Readiness for Promotion</p>
+                            <p class="text-xs uppercase tracking-wider font-bold text-gray-500">Readiness for Progression</p>
                             <p class="text-3xl font-extrabold" :class="promotionColor">{{ displayPromotionReadiness }}%</p>
                         </div>
 
@@ -445,16 +445,29 @@
                 ];
 
                 const rawProduct = [
-                  { name: "Process Awareness", desc: "Follows defined processes and SOPs", score: 0, level: "L1" },
-                  { name: "Task Compliance", desc: "Executes tasks with minimal process deviations", score: 0, level: "L1" },
-                  { name: "Consistent Execution", desc: "Consistently applies processes in delivery", score: 0, level: "L2" },
-                  { name: "Documentation Usage", desc: "Uses templates, checklists, documentation", score: 0, level: "L2" },
-                  { name: "Process Optimization", desc: "Identifies inefficiencies, suggests improvements", score: 0, level: "L3" },
-                  { name: "Cross-Process Understanding", desc: "Understands interaction of processes across lifecycle", score: 0, level: "L3" },
-                  { name: "Standardization", desc: "Promotes standardized processes across teams", score: 0, level: "L4" },
-                  { name: "Governance Implementation", desc: "Implements quality gates and compliance", score: 0, level: "L4" },
-                  { name: "Enterprise Process Design", desc: "Designs scalable processes across functions", score: 0, level: "L5" },
-                  { name: "Process Strategy", desc: "Defines long-term strategy and leads transformation", score: 0, level: "L6" }
+                  { "name": "Guided Product Task Execution", "desc": "Understands functional specs and user stories, performs unit testing, and applies basic user perspective with guidance", "score": 0, "level": "L1" },
+                  { "name": "Independent Product Task Ownership", "desc": "Completes product tasks independently and creates basic product specifications", "score": 0, "level": "L2" },
+                  { "name": "Advanced Product Tool Usage", "desc": "Uses advanced features of product tools to improve efficiency and overall product effectiveness", "score": 0, "level": "L2" },
+                  { "name": "Product Requirement Proficiency", "desc": "Demonstrates strong proficiency in product requirements, user empathy mapping, and role-relevant practices", "score": 0, "level": "L3" },
+                  { "name": "Holistic Product Development View", "desc": "Understands the full product lifecycle including UI, UX, functional testing, pricing, TRL, IP, and performance", "score": 0, "level": "L3" },
+                  { "name": "Modular Product Design & Stakeholder Mapping", "desc": "Translates user needs into modular product designs and maps relevant stakeholders", "score": 0, "level": "L3" },
+                  { "name": "Product Philosophy & Ethics Awareness", "desc": "Applies product design principles including privacy, usability, lifecycle planning, and support readiness", "score": 0, "level": "L3" },
+                  { "name": "High-Level Functional Design Authoring", "desc": "Authors high-level functional specifications and contributes to detailed wireframe designs", "score": 0, "level": "L3" },
+                  { "name": "Stakeholder-Driven Improvement Analysis", "desc": "Proposes product improvements based on feedback from competing or diverse stakeholder groups", "score": 0, "level": "L3" },
+                  { "name": "End-to-End Product Architecture Design", "desc": "Designs complete product architectures including feature structure and pricing strategy", "score": 0, "level": "L4" },
+                  { "name": "Product Growth Visualization", "desc": "Defines horizontal (features) and vertical (scale) growth paths for products", "score": 0, "level": "L4" },
+                  { "name": "Abstracted Requirement Translation", "desc": "Converts high-level, unstructured requirements into clear product recommendations", "score": 0, "level": "L4" },
+                  { "name": "Product Launch Decision-Making", "desc": "Evaluates readiness and makes informed go/no-go decisions for product launches", "score": 0, "level": "L4" },
+                  { "name": "Long-Term Product Roadmapping", "desc": "Creates 5-year product roadmaps based on market trends and evolving user needs", "score": 0, "level": "L5" },
+                  { "name": "Enterprise Product Standardization", "desc": "Defines and enforces product standards across languages, pricing, and experience layers", "score": 0, "level": "L5" },
+                  { "name": "Product Governance Exposure", "desc": "Participates in and understands product governance bodies and frameworks", "score": 0, "level": "L5" },
+                  { "name": "Product Leadership Mentorship", "desc": "Mentors and guides product engineering leads across teams", "score": 0, "level": "L5" },
+                  { "name": "Cross-Team Product Review", "desc": "Reviews product architectures across teams and proposes systemic improvements", "score": 0, "level": "L5" },
+                  { "name": "Outcome-Driven Product Strategy", "desc": "Defines and proposes product strategies aligned with business outcomes", "score": 0, "level": "L6" },
+                  { "name": "Enterprise Product Governance Design", "desc": "Builds and implements enterprise-wide product governance models", "score": 0, "level": "L6" },
+                  { "name": "Global Future-State Product Vision", "desc": "Defines long-term, global future-state product roadmaps", "score": 0, "level": "L6" },
+                  { "name": "Profit-Oriented Pricing Strategy", "desc": "Designs pricing strategies to reduce cost and increase profitability", "score": 0, "level": "L6" },
+                  { "name": "Executive Pricing Advisory", "desc": "Proposes pricing model changes to CFO in alignment with CTO and Chief Architect", "score": 0, "level": "L6" }
                 ];
 
                 const rolesData = ref([
