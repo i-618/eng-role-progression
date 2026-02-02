@@ -490,6 +490,7 @@
                 const associateNames = ["Rahul", "Daniyal", "Barath", "Rajshekar", "Kausik"];
                 
                 // Initialize associates with their own deep copy of skills and a random role (NOT Top Level)
+                // Sorted by Role Index (Level) Low -> High
                 const associates = ref(associateNames.map(name => {
                     // Deep copy skills to ensure isolation
                     const tech = JSON.parse(JSON.stringify(rawTech.map(s => ({...s, userScore: 0}))));
@@ -514,7 +515,7 @@
                             softskill: soft
                         }
                     };
-                }));
+                }).sort((a, b) => a.roleIndex - b.roleIndex));
 
                 const currentAssociate = computed(() => associates.value[selectedAssociateIndex.value]);
                 const skillState = computed(() => currentAssociate.value.skills);
